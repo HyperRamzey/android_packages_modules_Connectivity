@@ -10,4 +10,3 @@ service mdnsd_netbpfload /apex/com.android.tethering/bin/netbpfload
     user system
     rlimit memlock 1073741824 1073741824
     oneshot
-    reboot_on_failure reboot,netbpfload-failed
