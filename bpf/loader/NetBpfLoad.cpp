@@ -917,6 +917,19 @@ static int createMaps(ElfObject& elfObj, vector<struct bpf_map_def>& md, vector<
 
             fd.reset(bpf(BPF_MAP_CREATE, req));
             saved_errno = errno;
+            if (!fd.ok() && haveBtf && saved_errno == EINVAL) {
+                // Old vendor kernels may lack map BTF support even when the
+                // kernel version is reported as 4.18+ (spoofed utsname).
+                // Retry without BTF - the map itself is still fully usable.
+                req.btf_fd = 0;
+                req.btf_key_type_id = 0;
+                req.btf_value_type_id = 0;
+                fd.reset(bpf(BPF_MAP_CREATE, req));
+                saved_errno = errno;
+                if (fd.ok())
+                    ALOGW("bpf_create_map[%s] btf:%d -> %d (succeeded without BTF)",
+                          md[i].name(), haveBtf, fd.get());
+            }
             if (fd.ok()) {
                 ALOGD("bpf_create_map[%s] btf:%d -> %d",
                       md[i].name(), haveBtf, fd.get());
@@ -1858,8 +1871,11 @@ static int doLoad(char** argv, char * const envp[]) {
         ALOGE("If this triggers randomly, you might be hitting some memory allocation "
               "problems or startup script race.");
         ALOGE("--- DO NOT EXPECT SYSTEM TO BOOT SUCCESSFULLY ---");
-        sleep(20);
-        return 38;
+        // [old-kernel] Old vendor kernels (4.4) cannot load mainline BPF programs.
+        // Tethering falls back to iptables; returning 0 here avoids the
+        // 'bpfloader-failed' reboot_on_failure bootloop.
+        ALOGW("[old-kernel] continuing without BPF (non-fatal)");
+        return 0;
     }
 
     {
