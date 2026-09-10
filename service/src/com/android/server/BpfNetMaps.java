@@ -217,22 +217,60 @@ public class BpfNetMaps {
     }
 
 
+    /**
+     * No-op map returned when the pinned BPF maps are unavailable (old vendor
+     * kernels, e.g. 4.4, cannot host the netd BPF programs/maps). All reads see
+     * an empty map, all writes are dropped. This keeps NetworkStatsService and
+     * ConnectivityService constructors from crash-looping system_server on
+     * those kernels; the stack operates in a degraded no-BPF mode instead.
+     */
+    private static class NullBpfMap<K extends Struct, V extends Struct>
+            implements IBpfMap<K, V> {
+        @Override public void updateEntry(K key, V value) {}
+        @Override public void insertEntry(K key, V value) {}
+        @Override public void replaceEntry(K key, V value) {
+            throw new NoSuchElementException();
+        }
+        @Override public boolean insertOrReplaceEntry(K key, V value) { return true; }
+        @Override public boolean deleteEntry(K key) { return false; }
+        @Override public K getNextKey(K key) { return null; }
+        @Override public K getFirstKey() { return null; }
+        @Override public boolean containsKey(K key) { return false; }
+        @Override public V getValue(K key) { return null; }
+        @Override public void close() {}
+    }
+
+    /** True once a pinned BPF map open has failed with ENOENT (old kernel). */
+    private static volatile boolean sOldKernelBpfUnavailable = false;
+
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private static IBpfMap<S32, U32> getConfigurationMap() {
+        if (sOldKernelBpfUnavailable) return new NullBpfMap<>();
         try {
             return SingleWriterBpfMap.getSingleton(
                     CONFIGURATION_MAP_PATH, S32.class, U32.class);
         } catch (ErrnoException e) {
+            if (e.errno == android.system.OsConstants.ENOENT) {
+                android.util.Slog.w(TAG, "netd configuration BPF map unavailable (old kernel)"
+                        + " - BPF-dependent features degraded");
+                sOldKernelBpfUnavailable = true;
+                return new NullBpfMap<>();
+            }
             throw new IllegalStateException("Cannot open netd configuration map", e);
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private static IBpfMap<S32, UidOwnerValue> getUidOwnerMap() {
+        if (sOldKernelBpfUnavailable) return new NullBpfMap<>();
         try {
             return SingleWriterBpfMap.getSingleton(
                     UID_OWNER_MAP_PATH, S32.class, UidOwnerValue.class);
         } catch (ErrnoException e) {
+            if (e.errno == android.system.OsConstants.ENOENT) {
+                sOldKernelBpfUnavailable = true;
+                return new NullBpfMap<>();
+            }
             throw new IllegalStateException("Cannot open uid owner map", e);
         }
     }
@@ -260,10 +298,15 @@ public class BpfNetMaps {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private static IBpfMap<S32, U8> getDataSaverEnabledMap() {
+        if (sOldKernelBpfUnavailable) return new NullBpfMap<>();
         try {
             return SingleWriterBpfMap.getSingleton(
                     DATA_SAVER_ENABLED_MAP_PATH, S32.class, U8.class);
         } catch (ErrnoException e) {
+            if (e.errno == android.system.OsConstants.ENOENT) {
+                sOldKernelBpfUnavailable = true;
+                return new NullBpfMap<>();
+            }
             throw new IllegalStateException("Cannot open data saver enabled map", e);
         }
     }
