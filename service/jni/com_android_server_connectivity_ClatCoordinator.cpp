@@ -27,6 +27,9 @@
 #include <net/if.h>
 #include <spawn.h>
 #include <sys/stat.h>
+
+// for bpf::isAtLeastKernelVersion (old-kernel CLAT verification skip)
+#include "BpfSyscallWrappers.h"
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <sys/xattr.h>
@@ -84,7 +87,7 @@ static void verifyPerms(const char * const path,
       case VERIFY_MAP_RW: fd = bpf::mapRetrieveLocklessRW(path); break;
     }
 
-    if (fd < 0) ALOGF("bpf_obj_get '%s' failed, errno=%d", path, errno);
+    if (fd < 0) ALOGE("bpf_obj_get '%s' failed, errno=%d", path, errno);
 
     if (fd >= 0) close(fd);
 }
@@ -120,6 +123,17 @@ static void verifyClatPerms() {
     // pre-U we do not have selinux privs to getattr on bpf maps/progs
     // so while the below *should* be as listed, we have no way to actually verify
     if (!modules::sdklevel::IsAtLeastU()) return;
+
+    // Old vendor kernels (e.g. 4.4) lack the ~5.10 'bpffs selinux genfscon'
+    // backport, so the clatd BPF programs/maps are not (and cannot be) pinned
+    // with the expected permissions. Verifying (and aborting) here would
+    // crash-loop system_server on those kernels. Skip verification instead;
+    // CLAT (IPv4-over-IPv6 translation) is unavailable, the rest of
+    // connectivity continues to work.
+    if (!bpf::isAtLeastKernelVersion(5, 10, 0)) {
+        ALOGW("pre-5.10 kernel: skipping CLAT permission verification (no pinned clatd BPF)");
+        return;
+    }
 
 #define V2(path, md, vtype) \
     V("/sys/fs/bpf/net_shared/" path, (md), ROOT, SYSTEM, "fs_bpf_net_shared", vtype)
