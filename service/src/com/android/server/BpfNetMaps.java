@@ -277,21 +277,31 @@ public class BpfNetMaps {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private static IBpfMap<S32, U8> getUidPermissionMap() {
+        if (sOldKernelBpfUnavailable) return new NullBpfMap<>();
         try {
             return SingleWriterBpfMap.getSingleton(
                     UID_PERMISSION_MAP_PATH, S32.class, U8.class);
         } catch (ErrnoException e) {
+            if (e.errno == android.system.OsConstants.ENOENT) {
+                sOldKernelBpfUnavailable = true;
+                return new NullBpfMap<>();
+            }
             throw new IllegalStateException("Cannot open uid permission map", e);
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private static IBpfMap<S64, CookieTagMapValue> getCookieTagMap() {
+        if (sOldKernelBpfUnavailable) return new NullBpfMap<>();
         try {
             // Cannot use SingleWriterBpfMap because it's written by ClatCoordinator as well.
             return new BpfMap<>(COOKIE_TAG_MAP_PATH,
                     S64.class, CookieTagMapValue.class);
         } catch (ErrnoException e) {
+            if (e.errno == android.system.OsConstants.ENOENT) {
+                sOldKernelBpfUnavailable = true;
+                return new NullBpfMap<>();
+            }
             throw new IllegalStateException("Cannot open cookie tag map", e);
         }
     }
@@ -313,10 +323,15 @@ public class BpfNetMaps {
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private static IBpfMap<IngressDiscardKey, IngressDiscardValue> getIngressDiscardMap() {
+        if (sOldKernelBpfUnavailable) return new NullBpfMap<>();
         try {
             return SingleWriterBpfMap.getSingleton(INGRESS_DISCARD_MAP_PATH,
                     IngressDiscardKey.class, IngressDiscardValue.class);
         } catch (ErrnoException e) {
+            if (e.errno == android.system.OsConstants.ENOENT) {
+                sOldKernelBpfUnavailable = true;
+                return new NullBpfMap<>();
+            }
             throw new IllegalStateException("Cannot open ingress discard map", e);
         }
     }
