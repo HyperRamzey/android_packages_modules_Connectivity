@@ -2570,6 +2570,11 @@ public class NetworkStatsService extends INetworkStatsService.Stub {
             Log.w(TAG, "problem reading network stats: " + e);
         } catch (RemoteException e) {
             // ignored; service lives in system_server
+        } catch (java.io.IOException e) {
+            // Old vendor kernels (e.g. 4.4) have no pinned BPF maps: the
+            // native parser reports no data. Bootstrapping must not kill
+            // system_server - treat as empty stats.
+            Log.w(TAG, "no BPF network stats available (old kernel): " + e);
         }
     }
 
