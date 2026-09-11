@@ -255,12 +255,15 @@ int parseBpfNetworkStatsDetail(std::vector<stats_line>* lines) {
     static BpfMapRO<uint32_t, uint32_t> configurationMap(CONFIGURATION_MAP_PATH);
     static BpfMap<StatsKey, StatsValue> statsMapA(STATS_MAP_A_PATH);
     static BpfMap<StatsKey, StatsValue> statsMapB(STATS_MAP_B_PATH);
-    // Old vendor kernels (e.g. 4.4) have no pinned BPF maps: report no
-    // stats rather than aborting system_server (the callers treat a
-    // negative return as 'no data available').
+    // Old vendor kernels (e.g. 4.4) have no pinned BPF maps. Report
+    // empty stats with success: an error return surfaces as an exception
+    // in Java (IOException -> IllegalStateException) and has historically
+    // crashed system_server via the stats pullers. No maps = no data, which
+    // is exactly what returning zero lines conveys.
     if (!configurationMap.isValid() || !statsMapA.isValid() || !statsMapB.isValid()) {
-        ALOGW("[old-kernel] pinned stats maps unavailable - returning empty stats");
-        return -ENOENT;
+        ALOGW("[old-kernel] pinned stats maps unavailable - reporting empty stats");
+        lines->clear();
+        return 0;
     }
     auto configuration = configurationMap.readValue(CURRENT_STATS_MAP_CONFIGURATION_KEY);
     if (!configuration.ok()) {
