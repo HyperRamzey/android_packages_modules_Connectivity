@@ -916,7 +916,11 @@ public class NetworkStatsService extends INetworkStatsService.Stub {
             try {
                 return new BpfMap<>(IFACE_STATS_MAP_PATH, S32.class, StatsMapValue.class);
             } catch (ErrnoException e) {
-                throw new IllegalStateException("Failed to open interface stats map", e);
+                // Old vendor kernels (e.g. 4.4) cannot pin the BPF maps; the
+                // stats service degrades to netd-free operation instead of
+                // crash-looping system_server. Mirrors getStatsMapB.
+                Log.wtf(TAG, "Cannot open iface stats map: " + e);
+                return null;
             }
         }
 
@@ -3189,7 +3193,7 @@ public class NetworkStatsService extends INetworkStatsService.Stub {
         BpfDump.dumpMapStatus(mAppUidStatsMap, pw, "mAppUidStatsMap", APP_UID_STATS_MAP_PATH);
         BpfDump.dumpMapStatus(mStatsMapA, pw, "mStatsMapA", STATS_MAP_A_PATH);
         BpfDump.dumpMapStatus(mStatsMapB, pw, "mStatsMapB", STATS_MAP_B_PATH);
-        // mIfaceStatsMap is always not null but dump status to be consistent with other maps.
+        // mIfaceStatsMap may be null on old kernels without pinned BPF maps.
         BpfDump.dumpMapStatus(mIfaceStatsMap, pw, "mIfaceStatsMap", IFACE_STATS_MAP_PATH);
     }
 
@@ -3252,6 +3256,7 @@ public class NetworkStatsService extends INetworkStatsService.Stub {
 
     @GuardedBy("mStatsLock")
     private void dumpIfaceStatsMapLocked(final IndentingPrintWriter pw) {
+        if (mIfaceStatsMap == null) return;
         BpfDump.dumpMap(mIfaceStatsMap, pw, "mIfaceStatsMap",
                 "ifaceIndex ifaceName rxBytes rxPackets txBytes txPackets",
                 (key, value) -> {
