@@ -2621,6 +2621,11 @@ public class NetworkStatsService extends INetworkStatsService.Stub {
         } catch (RemoteException e) {
             // ignored; service lives in system_server
             return;
+        } catch (java.io.IOException e) {
+            // Old vendor kernels have no pinned BPF maps: stats reads
+            // report no data. Polling must not kill system_server.
+            Log.w(TAG, "no BPF network stats (old kernel): " + e);
+            return;
         }
 
         // persist any pending data depending on requested flags
