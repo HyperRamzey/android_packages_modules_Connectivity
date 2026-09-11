@@ -216,6 +216,8 @@ public class BpfNetMapsUtils {
         final long match = getMatchByFirewallChain(chain);
         try {
             final U32 config = configurationMap.getValue(UID_RULES_CONFIGURATION_KEY);
+            // Absent pinned maps (old kernels): no configuration means chain not enabled.
+            if (config == null) return false;
             return (config.val & match) != 0;
         } catch (ErrnoException e) {
             throw new ServiceSpecificException(e.errno,
@@ -270,7 +272,11 @@ public class BpfNetMapsUtils {
         final long uidRuleConfig;
         final long uidMatch;
         try {
-            uidRuleConfig = configurationMap.getValue(UID_RULES_CONFIGURATION_KEY).val;
+            final U32 config = configurationMap.getValue(UID_RULES_CONFIGURATION_KEY);
+            // Absent pinned maps (old kernels, netbpfload failed to load programs):
+            // no rule configuration means nothing is blocking this uid.
+            if (config == null) return BLOCKED_REASON_NONE;
+            uidRuleConfig = config.val;
             final UidOwnerValue value = uidOwnerMap.getValue(new Struct.S32(uid));
             uidMatch = (value != null) ? value.rule : 0L;
         } catch (ErrnoException e) {
@@ -366,7 +372,10 @@ public class BpfNetMapsUtils {
         throwIfPreT("getDataSaverEnabled is not available on pre-T devices");
 
         try {
-            return dataSaverEnabledMap.getValue(DATA_SAVER_ENABLED_KEY).val == DATA_SAVER_ENABLED;
+            final U8 value = dataSaverEnabledMap.getValue(DATA_SAVER_ENABLED_KEY);
+            // Absent pinned maps (old kernels): data saver considered disabled.
+            if (value == null) return false;
+            return value.val == DATA_SAVER_ENABLED;
         } catch (ErrnoException e) {
             throw new ServiceSpecificException(e.errno, "Unable to get data saver: "
                     + Os.strerror(e.errno));
