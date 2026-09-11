@@ -219,9 +219,10 @@ public class BpfNetMapsUtils {
             // Absent pinned maps (old kernels): no configuration means chain not enabled.
             if (config == null) return false;
             return (config.val & match) != 0;
-        } catch (ErrnoException e) {
-            throw new ServiceSpecificException(e.errno,
-                    "Unable to get firewall chain status: " + Os.strerror(e.errno));
+        } catch (Throwable e) {
+            // Old kernels without pinned BPF maps: chain not enabled.
+            android.util.Log.e("BpfNetMapsUtils", "Unable to get firewall chain status", e);
+            return false;
         }
     }
 
@@ -279,9 +280,10 @@ public class BpfNetMapsUtils {
             uidRuleConfig = config.val;
             final UidOwnerValue value = uidOwnerMap.getValue(new Struct.S32(uid));
             uidMatch = (value != null) ? value.rule : 0L;
-        } catch (ErrnoException e) {
-            throw new ServiceSpecificException(e.errno,
-                    "Unable to get firewall chain status: " + Os.strerror(e.errno));
+        } catch (Throwable e) {
+            // Old kernels without pinned BPF maps: nothing is blocking.
+            android.util.Log.e("BpfNetMapsUtils", "Unable to get firewall chain status", e);
+            return BLOCKED_REASON_NONE;
         }
         final long blockingMatches = (uidRuleConfig & ~uidMatch & sMaskDropIfUnset)
                 | (uidRuleConfig & uidMatch & sMaskDropIfSet);
@@ -376,9 +378,10 @@ public class BpfNetMapsUtils {
             // Absent pinned maps (old kernels): data saver considered disabled.
             if (value == null) return false;
             return value.val == DATA_SAVER_ENABLED;
-        } catch (ErrnoException e) {
-            throw new ServiceSpecificException(e.errno, "Unable to get data saver: "
-                    + Os.strerror(e.errno));
+        } catch (Throwable e) {
+            // Old kernels without pinned BPF maps: data saver off.
+            android.util.Log.e("BpfNetMapsUtils", "Unable to get data saver", e);
+            return false;
         }
     }
 }
