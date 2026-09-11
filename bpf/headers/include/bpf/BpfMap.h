@@ -127,7 +127,12 @@ class BpfMapRO {
   public:
     explicit BpfMapRO<Key, Value>(const char* pathname) {
         mMapFd.reset(mapRetrieveRO(pathname));
-        abortOnMismatch(/* writable */ false);
+        // Old vendor kernels (e.g. 4.4) cannot pin the BPF maps at all:
+        // mapRetrieveRO fails with ENOENT. Aborting here crash-loops
+        // system_server during boot. Keep the invalid fd instead - callers
+        // already handle !isValid()/Result errors gracefully; the abort
+        // below remains for genuine mismatches on kernels with maps.
+        if (mMapFd.ok()) abortOnMismatch(/* writable */ false);
     }
 
     Result<Key> getFirstKey() const {
@@ -333,7 +338,9 @@ class BpfMapRW : public BpfMapRO<Key, Value> {
 
     explicit BpfMapRW<Key, Value>(const char* pathname) {
         mMapFd.reset(mapRetrieveRW(pathname));
-        abortOnMismatch(/* writable */ true);
+        // See BpfMapRO(const char*): absent pinned maps (old kernels) must
+        // not abort system_server; keep invalid fd, callers handle it.
+        if (mMapFd.ok()) abortOnMismatch(/* writable */ true);
     }
 
     // Function that tries to get map from a pinned path.

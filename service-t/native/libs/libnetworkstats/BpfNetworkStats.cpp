@@ -255,6 +255,13 @@ int parseBpfNetworkStatsDetail(std::vector<stats_line>* lines) {
     static BpfMapRO<uint32_t, uint32_t> configurationMap(CONFIGURATION_MAP_PATH);
     static BpfMap<StatsKey, StatsValue> statsMapA(STATS_MAP_A_PATH);
     static BpfMap<StatsKey, StatsValue> statsMapB(STATS_MAP_B_PATH);
+    // Old vendor kernels (e.g. 4.4) have no pinned BPF maps: report no
+    // stats rather than aborting system_server (the callers treat a
+    // negative return as 'no data available').
+    if (!configurationMap.isValid() || !statsMapA.isValid() || !statsMapB.isValid()) {
+        ALOGW("[old-kernel] pinned stats maps unavailable - returning empty stats");
+        return -ENOENT;
+    }
     auto configuration = configurationMap.readValue(CURRENT_STATS_MAP_CONFIGURATION_KEY);
     if (!configuration.ok()) {
         ALOGE("Cannot read the old configuration from map: %s",
