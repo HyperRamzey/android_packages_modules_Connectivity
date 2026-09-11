@@ -614,7 +614,9 @@ public class BpfNetMaps {
         try {
             synchronized (sUidRulesConfigBpfMapLock) {
                 final U32 config = sConfigurationMap.getValue(UID_RULES_CONFIGURATION_KEY);
-                final long newConfig = enable ? (config.val | match) : (config.val & ~match);
+                // Null config: old kernel without pinned maps (NullBpfMap) - treat as 0.
+                final long cur = (config != null) ? config.val : 0;
+                final long newConfig = enable ? (cur | match) : (cur & ~match);
                 sConfigurationMap.updateEntry(UID_RULES_CONFIGURATION_KEY, new U32(newConfig));
             }
         } catch (ErrnoException e) {
@@ -898,8 +900,10 @@ public class BpfNetMaps {
 
         try {
             synchronized (sCurrentStatsMapConfigLock) {
-                final long config = sConfigurationMap.getValue(
-                        CURRENT_STATS_MAP_CONFIGURATION_KEY).val;
+                final U32 configVal = sConfigurationMap.getValue(
+                        CURRENT_STATS_MAP_CONFIGURATION_KEY);
+                // Null value: old kernel without pinned maps (NullBpfMap).
+                final long config = (configVal != null) ? configVal.val : STATS_SELECT_MAP_A;
                 final long newConfig = (config == STATS_SELECT_MAP_A)
                         ? STATS_SELECT_MAP_B : STATS_SELECT_MAP_A;
                 sConfigurationMap.updateEntry(CURRENT_STATS_MAP_CONFIGURATION_KEY,
