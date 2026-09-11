@@ -97,7 +97,9 @@ public class NetworkStackBpfNetMaps {
                 return new BpfMap<>(CONFIGURATION_MAP_PATH, BpfMap.BPF_F_RDONLY,
                         S32.class, U32.class);
             } catch (ErrnoException e) {
-                throw new IllegalStateException("Cannot open configuration map", e);
+                // BPF-less kernels: no pinned maps; report as absent.
+                android.util.Log.e(TAG, "Cannot open configuration map: " + e);
+                return null;
             }
         }
 
@@ -107,7 +109,8 @@ public class NetworkStackBpfNetMaps {
                 return new BpfMap<>(UID_OWNER_MAP_PATH, BpfMap.BPF_F_RDONLY,
                         S32.class, UidOwnerValue.class);
             } catch (ErrnoException e) {
-                throw new IllegalStateException("Cannot open uid owner map", e);
+                android.util.Log.e(TAG, "Cannot open uid owner map: " + e);
+                return null;
             }
         }
 
@@ -117,7 +120,8 @@ public class NetworkStackBpfNetMaps {
                 return new BpfMap<>(DATA_SAVER_ENABLED_MAP_PATH, BpfMap.BPF_F_RDONLY, S32.class,
                         U8.class);
             } catch (ErrnoException e) {
-                throw new IllegalStateException("Cannot open data saver enabled map", e);
+                android.util.Log.e(TAG, "Cannot open data saver enabled map: " + e);
+                return null;
             }
         }
     }

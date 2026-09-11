@@ -25,14 +25,17 @@ namespace android {
 namespace bpf {
 
 // Wait for bpfloader to load BPF programs.
+// BPF-less devices (old kernels): the property is never set, bound the total
+// wait to 10s and proceed so that lmkd/netd can fall back to legacy paths
+// instead of hanging boot forever.
 static inline void waitForProgsLoaded() {
-    // infinite loop until success with 5/10/20/40/60/60/60... delay
-    for (int delay = 5;; delay *= 2) {
-        if (delay > 60) delay = 60;
+    // bounded: 5+5s, then give up
+    for (int delay = 5; delay <= 10; delay *= 2) {
         if (android::base::WaitForProperty("bpf.progs_loaded", "1", std::chrono::seconds(delay)))
             return;
         ALOGW("Waited %ds for bpf.progs_loaded, still waiting...", delay);
     }
+    ALOGE("bpf.progs_loaded not set after 10s (BPF-less kernel?); continuing without BPF");
 }
 
 }  // namespace bpf

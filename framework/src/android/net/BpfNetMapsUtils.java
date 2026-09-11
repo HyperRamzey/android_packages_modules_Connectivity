@@ -214,6 +214,8 @@ public class BpfNetMapsUtils {
         throwIfPreT("isChainEnabled is not available on pre-T devices");
 
         final long match = getMatchByFirewallChain(chain);
+        // BPF-less kernels: the map itself may be absent (null).
+        if (configurationMap == null) return false;
         try {
             final U32 config = configurationMap.getValue(UID_RULES_CONFIGURATION_KEY);
             // Absent pinned maps (old kernels): no configuration means chain not enabled.
@@ -267,6 +269,11 @@ public class BpfNetMapsUtils {
         // System uids are not blocked by firewall chains, see bpf_progs/netd.c
         // TODO: b/348513058 - use UserHandle.isCore() once it is accessible
         if (UserHandle.getAppId(uid) < Process.FIRST_APPLICATION_UID) {
+            return BLOCKED_REASON_NONE;
+        }
+
+        // BPF-less kernels: the maps themselves may be absent (null).
+        if (configurationMap == null || uidOwnerMap == null || dataSaverEnabledMap == null) {
             return BLOCKED_REASON_NONE;
         }
 
@@ -373,6 +380,8 @@ public class BpfNetMapsUtils {
     public static boolean getDataSaverEnabled(IBpfMap<S32, U8> dataSaverEnabledMap) {
         throwIfPreT("getDataSaverEnabled is not available on pre-T devices");
 
+        // BPF-less kernels: the map itself may be absent (null).
+        if (dataSaverEnabledMap == null) return false;
         try {
             final U8 value = dataSaverEnabledMap.getValue(DATA_SAVER_ENABLED_KEY);
             // Absent pinned maps (old kernels): data saver considered disabled.
