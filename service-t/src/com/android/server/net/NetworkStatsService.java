@@ -3274,7 +3274,8 @@ public class NetworkStatsService extends INetworkStatsService.Stub {
         try {
             return mStatsFactory.readNetworkStatsSummaryXt();
         } catch (IOException e) {
-            throw new IllegalStateException(e);
+            android.util.Log.e(TAG, "Failed grabbing network stats", e);
+            return new NetworkStats(1, 0);
         }
     }
 
@@ -3282,7 +3283,8 @@ public class NetworkStatsService extends INetworkStatsService.Stub {
         try {
             return mStatsFactory.readNetworkStatsDetail(uid, ifaces, tag);
         } catch (IOException e) {
-            throw new IllegalStateException(e);
+            android.util.Log.e(TAG, "Failed grabbing network stats", e);
+            return new NetworkStats(1, 0);
         }
     }
 
