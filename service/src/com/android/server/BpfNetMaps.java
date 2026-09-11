@@ -366,13 +366,15 @@ public class BpfNetMaps {
             sConfigurationMap.updateEntry(UID_RULES_CONFIGURATION_KEY,
                     new U32(UID_RULES_DEFAULT_CONFIGURATION));
         } catch (ErrnoException e) {
-            throw new IllegalStateException("Failed to initialize uid rules configuration", e);
+            // Old kernels without pinned BPF maps: tolerate and continue.
+            Log.e(TAG, "Failed to initialize uid rules configuration: " + e);
         }
         try {
             sConfigurationMap.updateEntry(CURRENT_STATS_MAP_CONFIGURATION_KEY,
                     new U32(STATS_SELECT_MAP_A));
         } catch (ErrnoException e) {
-            throw new IllegalStateException("Failed to initialize current stats configuration", e);
+            // Old kernels without pinned BPF maps: tolerate and continue.
+            Log.e(TAG, "Failed to initialize current stats configuration: " + e);
         }
 
         if (sUidOwnerMap == null) {
@@ -381,7 +383,8 @@ public class BpfNetMaps {
         try {
             sUidOwnerMap.clear();
         } catch (ErrnoException e) {
-            throw new IllegalStateException("Failed to initialize uid owner map", e);
+            // Old kernels without pinned BPF maps: tolerate and continue.
+            Log.e(TAG, "Failed to initialize uid owner map: " + e);
         }
 
         if (sUidPermissionMap == null) {
@@ -398,7 +401,8 @@ public class BpfNetMaps {
         try {
             sDataSaverEnabledMap.updateEntry(DATA_SAVER_ENABLED_KEY, new U8(DATA_SAVER_DISABLED));
         } catch (ErrnoException e) {
-            throw new IllegalStateException("Failed to initialize data saver configuration", e);
+            // Old kernels without pinned BPF maps: tolerate and continue.
+            Log.e(TAG, "Failed to initialize data saver configuration: " + e);
         }
 
         if (sIngressDiscardMap == null) {
@@ -407,7 +411,8 @@ public class BpfNetMaps {
         try {
             sIngressDiscardMap.clear();
         } catch (ErrnoException e) {
-            throw new IllegalStateException("Failed to initialize ingress discard map", e);
+            // Old kernels without pinned BPF maps: tolerate and continue.
+            Log.e(TAG, "Failed to initialize ingress discard map: " + e);
         }
 
         if (isAtLeast25Q2()) {
@@ -417,8 +422,9 @@ public class BpfNetMaps {
             try {
                 sLocalNetAccessMap.clear();
             } catch (ErrnoException e) {
-                throw new IllegalStateException("Failed to initialize local_net_access map", e);
-            }
+            // Old kernels without pinned BPF maps: tolerate and continue.
+            Log.e(TAG, "Failed to initialize local_net_access map: " + e);
+        }
 
             if (sLocalNetBlockedUidMap == null) {
                 sLocalNetBlockedUidMap = getLocalNetBlockedUidMap();
