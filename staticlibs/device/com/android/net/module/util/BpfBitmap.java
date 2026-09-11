@@ -111,6 +111,7 @@ public class BpfBitmap {
      * @throws ErrnoException if updating entry to 0 fails.
      */
     public void clear() throws ErrnoException {
+        if (mBpfMap == null) return; // BPF-less kernel: nothing to clear
         mBpfMap.forEach((key, value) -> {
             mBpfMap.updateEntry(key, new Struct.S64(0));
         });
@@ -120,6 +121,7 @@ public class BpfBitmap {
      * Checks if all bitmap values are 0.
      */
     public boolean isEmpty() throws ErrnoException {
+        if (mBpfMap == null) return true; // BPF-less kernel: vacuously empty
         Struct.S32 key = mBpfMap.getFirstKey();
         while (key != null) {
             Struct.S64 val = mBpfMap.getValue(key);

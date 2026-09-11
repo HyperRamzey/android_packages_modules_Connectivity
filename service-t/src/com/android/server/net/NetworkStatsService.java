@@ -2768,6 +2768,11 @@ public class NetworkStatsService extends INetworkStatsService.Stub {
      * @param uid
      */
     private void deleteKernelTagData(int uid) {
+        // BPF-less device: maps may be absent (null); deleting is best-effort
+        if (mCookieTagMap == null) {
+            Log.w(TAG, "deleteKernelTagData: mCookieTagMap null (BPF-less kernel), skipping");
+            return;
+        }
         try {
             mCookieTagMap.forEach((key, value) -> {
                 // If SkDestroyListener deletes the socket tag while this code is running,
