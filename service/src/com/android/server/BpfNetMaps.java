@@ -1308,7 +1308,12 @@ public class BpfNetMaps {
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
     private void dumpOwnerMatchConfig(final IndentingPrintWriter pw) {
         try {
-            final long match = sConfigurationMap.getValue(UID_RULES_CONFIGURATION_KEY).val;
+            final U32 matchVal = sConfigurationMap.getValue(UID_RULES_CONFIGURATION_KEY);
+            if (matchVal == null) {
+                pw.println("current ownerMatch configuration: unavailable (no BPF maps)");
+                return;
+            }
+            final long match = matchVal.val;
             pw.println("current ownerMatch configuration: " + match + " " + matchToString(match));
         } catch (ErrnoException e) {
             pw.println("Failed to read ownerMatch configuration: " + e);
@@ -1317,7 +1322,12 @@ public class BpfNetMaps {
 
     private void dumpCurrentStatsMapConfig(final IndentingPrintWriter pw) {
         try {
-            final long config = sConfigurationMap.getValue(CURRENT_STATS_MAP_CONFIGURATION_KEY).val;
+            final U32 configVal = sConfigurationMap.getValue(CURRENT_STATS_MAP_CONFIGURATION_KEY);
+            if (configVal == null) {
+                pw.println("current statsMap configuration: unavailable (no BPF maps)");
+                return;
+            }
+            final long config = configVal.val;
             final String currentStatsMap =
                     (config == STATS_SELECT_MAP_A) ? "SELECT_MAP_A" : "SELECT_MAP_B";
             pw.println("current statsMap configuration: " + config + " " + currentStatsMap);
@@ -1328,7 +1338,12 @@ public class BpfNetMaps {
 
     private void dumpDataSaverConfig(final IndentingPrintWriter pw) {
         try {
-            final short config = sDataSaverEnabledMap.getValue(DATA_SAVER_ENABLED_KEY).val;
+            final U8 configVal = sDataSaverEnabledMap.getValue(DATA_SAVER_ENABLED_KEY);
+            if (configVal == null) {
+                pw.println("sDataSaverEnabledMap: unavailable (no BPF maps)");
+                return;
+            }
+            final short config = configVal.val;
             // Any non-zero value converted from short to boolean is true by convention.
             pw.println("sDataSaverEnabledMap: " + (config != DATA_SAVER_DISABLED));
         } catch (ErrnoException e) {
